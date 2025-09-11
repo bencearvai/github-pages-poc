@@ -31,9 +31,42 @@ jobs:
         retention-days: 30
     - name: Setup Pages
       uses: actions/configure-pages@v4
+
+    - name: Generate or update index.html
+      run: |
+          mkdir -p pages/reports
+          
+          # Use timestamp for uniqueness
+          DATE=$(date +'%Y-%m-%d_%H-%M-%S')
+          REPORT_DIR="reports/$DATE"
+          mkdir -p "pages/${REPORT_DIR}"
+          cp -r playwright-report/* "pages/${REPORT_DIR}"
+
+          # Save metadata for later
+          echo "REPORT_DIR=$REPORT_DIR" >> $GITHUB_ENV
+          echo "DATE=$DATE" >> $GITHUB_ENV
+    - name: Generate or update index.html
+      run: |
+          INDEX_FILE=pages/index.html
+          
+          # Start fresh index if it doesn't exist
+          if [ ! -f "$INDEX_FILE" ]; then
+            echo "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Playwright Reports</title></head><body><h1>Playwright Reports</h1><ul>" > $INDEX_FILE
+          else
+            # Remove closing tags for safe append
+            sed -i '$d' $INDEX_FILE
+            sed -i '$d' $INDEX_FILE
+          fi
+          
+          # Add link to the new report
+          echo "<li><a href='${REPORT_DIR}/index.html'>Report from ${DATE}</a></li>" >> $INDEX_FILE
+          
+          # Close tags again
+          echo "</ul></body></html>" >> $INDEX_FILE
+
     - name: Upload artifact to GitHub Pages
       uses: actions/upload-pages-artifact@v4
       with:
-        path: playwright-report/
+        path: pages
     - name: Deploy to GitHub Pages
       uses: actions/deploy-pages@v4
