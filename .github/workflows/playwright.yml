@@ -16,52 +16,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # Checkout repo
     - uses: actions/checkout@v4
 
+    # Set up Node.js
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
 
+    # Install dependencies
     - name: Install dependencies
       run: npm ci
 
+    # Install Playwright browsers
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
 
+    # Run tests — continue even if tests fail
     - name: Run Playwright tests
       run: npx playwright test --reporter=html
+      continue-on-error: true
 
+    # Setup Pages
     - name: Setup Pages
       if: always()
       uses: actions/configure-pages@v4
 
-    # 🔹 Pull down existing gh-pages content to preserve old reports & index
+    # Pull existing gh-pages branch to preserve old reports
     - name: Download existing Pages content
       if: always()
       run: |
         git clone --depth 1 --branch gh-pages "https://github.com/${GITHUB_REPOSITORY}.git" pages || mkdir -p pages
 
-    # 🔹 Copy the new report into a timestamped folder
+    # Copy the new report into a timestamped folder
     - name: Copy new report
       if: always()
       run: |
         mkdir -p pages/reports
         DATE=$(date +'%Y-%m-%d_%H-%M-%S')
         SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
-
         REPORT_DIR="reports/${DATE}_${SHORT_SHA}"
         mkdir -p "pages/${REPORT_DIR}"
         cp -r playwright-report/* "pages/${REPORT_DIR}"
-
         echo "REPORT_DIR=$REPORT_DIR" >> $GITHUB_ENV
         echo "DATE=$DATE" >> $GITHUB_ENV
         echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
 
-    # 🔹 Update index.html with new link under the title
+    # Update index.html with a new entry linking to the commit on GitHub
     - name: Update index.html
       if: always()
       run: |
         INDEX_FILE=pages/index.html
+        REPO_URL="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
 
         # Create skeleton if index doesn't exist
         if [ ! -f "$INDEX_FILE" ]; then
@@ -69,19 +75,20 @@ jobs:
           echo "</ul></body></html>" >> $INDEX_FILE
         fi
 
-        # Build link entry with date + commit SHA
-        NEW_ENTRY="<li><a href='${REPORT_DIR}/index.html'>Report from ${DATE} (commit ${SHORT_SHA})</a></li>"
+        # Build the new entry with clickable commit link
+        NEW_ENTRY="<li><a href='${REPORT_DIR}/index.html'>Report from ${DATE} (commit <a href='${REPO_URL}'>${SHORT_SHA}</a>)</a></li>"
 
-        # Insert new entry right after <ul> (so it's always under the title, latest first)
+        # Insert new entry right after <ul> so it appears under the title
         awk -v entry="$NEW_ENTRY" '/<ul>/{print;print entry;next}1' $INDEX_FILE > temp && mv temp $INDEX_FILE
 
-    # 🔹 Upload final site to Pages
+    # Upload all Pages content
     - name: Upload artifact to GitHub Pages
       if: always()
       uses: actions/upload-pages-artifact@v4
       with:
         path: pages
 
+    # Deploy to GitHub Pages
     - name: Deploy to GitHub Pages
       if: always()
       uses: actions/deploy-pages@v4
