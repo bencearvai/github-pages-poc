@@ -32,15 +32,18 @@ jobs:
       run: npx playwright test --reporter=html
 
     - name: Setup Pages
+      if: always()
       uses: actions/configure-pages@v4
 
     # 🔹 Pull down existing gh-pages content to preserve old reports & index
     - name: Download existing Pages content
+      if: always()
       run: |
         git clone --depth 1 --branch gh-pages "https://github.com/${GITHUB_REPOSITORY}.git" pages || mkdir -p pages
 
     # 🔹 Copy the new report into a timestamped folder
     - name: Copy new report
+      if: always()
       run: |
         mkdir -p pages/reports
         DATE=$(date +'%Y-%m-%d_%H-%M-%S')
@@ -56,6 +59,7 @@ jobs:
 
     # 🔹 Update index.html with new link under the title
     - name: Update index.html
+      if: always()
       run: |
         INDEX_FILE=pages/index.html
 
@@ -73,9 +77,11 @@ jobs:
 
     # 🔹 Upload final site to Pages
     - name: Upload artifact to GitHub Pages
+      if: always()
       uses: actions/upload-pages-artifact@v4
       with:
         path: pages
 
     - name: Deploy to GitHub Pages
+      if: always()
       uses: actions/deploy-pages@v4
