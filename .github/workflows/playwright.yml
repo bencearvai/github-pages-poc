@@ -34,38 +34,44 @@ jobs:
     - name: Setup Pages
       uses: actions/configure-pages@v4
 
-    # 🟢 Pull down the existing gh-pages content (to preserve index & old reports)
+    # 🔹 Pull down existing gh-pages content to preserve old reports & index
     - name: Download existing Pages content
       run: |
         git clone --depth 1 --branch gh-pages "https://github.com/${GITHUB_REPOSITORY}.git" pages || mkdir -p pages
 
-    # 🟢 Copy the new report into a timestamped folder
+    # 🔹 Copy the new report into a timestamped folder
     - name: Copy new report
       run: |
         mkdir -p pages/reports
         DATE=$(date +'%Y-%m-%d_%H-%M-%S')
-        REPORT_DIR="reports/$DATE"
+        SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+
+        REPORT_DIR="reports/${DATE}_${SHORT_SHA}"
         mkdir -p "pages/${REPORT_DIR}"
         cp -r playwright-report/* "pages/${REPORT_DIR}"
+
         echo "REPORT_DIR=$REPORT_DIR" >> $GITHUB_ENV
         echo "DATE=$DATE" >> $GITHUB_ENV
+        echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
 
-    # 🟢 Update index.html to include new report
+    # 🔹 Update index.html with new link under the title
     - name: Update index.html
       run: |
         INDEX_FILE=pages/index.html
+
+        # Create skeleton if index doesn't exist
         if [ ! -f "$INDEX_FILE" ]; then
           echo "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Playwright Reports</title></head><body><h1>Playwright Reports</h1><ul>" > $INDEX_FILE
-        else
-          sed -i '$d' $INDEX_FILE
-          sed -i '$d' $INDEX_FILE
+          echo "</ul></body></html>" >> $INDEX_FILE
         fi
 
-        # Add link at the TOP (latest first)
-        echo "<li><a href='${REPORT_DIR}/index.html'>Report from ${DATE}</a></li>" | cat - $INDEX_FILE > temp && mv temp $INDEX_FILE
+        # Build link entry with date + commit SHA
+        NEW_ENTRY="<li><a href='${REPORT_DIR}/index.html'>Report from ${DATE} (commit ${SHORT_SHA})</a></li>"
 
-        echo "</ul></body></html>" >> $INDEX_FILE
+        # Insert new entry right after <ul> (so it's always under the title, latest first)
+        awk -v entry="$NEW_ENTRY" '/<ul>/{print;print entry;next}1' $INDEX_FILE > temp && mv temp $INDEX_FILE
 
+    # 🔹 Upload final site to Pages
     - name: Upload artifact to GitHub Pages
       uses: actions/upload-pages-artifact@v4
       with:
