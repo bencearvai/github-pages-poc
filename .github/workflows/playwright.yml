@@ -46,7 +46,7 @@ jobs:
     - name: Download existing Pages content
       if: always()
       run: |
-        git clone --depth 1 --branch gh-pages "https://github.com/${GITHUB_REPOSITORY}.git" pages || mkdir -p pages
+        git clone --depth 1 --branch github-pages "https://github.com/${GITHUB_REPOSITORY}.git" pages || mkdir -p pages
 
     # Copy the new report into a timestamped folder
     - name: Copy new report
