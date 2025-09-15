@@ -35,60 +35,25 @@ jobs:
     # Run tests — continue even if tests fail
     - name: Run Playwright tests
       run: npx playwright test --reporter=html
-      continue-on-error: true
-
-    # Setup Pages
-    - name: Setup Pages
-      if: always()
-      uses: actions/configure-pages@v4
-
-    # Pull existing gh-pages branch to preserve old reports
-    - name: Download existing Pages content
-      if: always()
-      run: |
-        git clone --depth 1 --branch github-pages "https://github.com/${GITHUB_REPOSITORY}.git" pages || mkdir -p pages
-
-    # Copy the new report into a timestamped folder
-    - name: Copy new report
-      if: always()
-      run: |
-        mkdir -p pages/reports
-        DATE=$(date +'%Y-%m-%d_%H-%M-%S')
-        SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
-        REPORT_DIR="reports/${DATE}_${SHORT_SHA}"
-        mkdir -p "pages/${REPORT_DIR}"
-        cp -r playwright-report/* "pages/${REPORT_DIR}"
-        echo "REPORT_DIR=$REPORT_DIR" >> $GITHUB_ENV
-        echo "DATE=$DATE" >> $GITHUB_ENV
-        echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
-
-    # Update index.html with a new entry linking to the commit on GitHub
-    - name: Update index.html
-      if: always()
-      run: |
-        INDEX_FILE=pages/index.html
-        REPO_URL="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
-
-        # Create skeleton if index doesn't exist
-        if [ ! -f "$INDEX_FILE" ]; then
-          echo "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Playwright Reports</title></head><body><h1>Playwright Reports</h1><ul>" > $INDEX_FILE
-          echo "</ul></body></html>" >> $INDEX_FILE
-        fi
-
-        # Build the new entry with clickable commit link
-        NEW_ENTRY="<li><a href='${REPORT_DIR}/index.html'>Report from ${DATE} (commit <a href='${REPO_URL}'>${SHORT_SHA}</a>)</a></li>"
-
-        # Insert new entry right after <ul> so it appears under the title
-        awk -v entry="$NEW_ENTRY" '/<ul>/{print;print entry;next}1' $INDEX_FILE > temp && mv temp $INDEX_FILE
-
-    # Upload all Pages content
-    - name: Upload artifact to GitHub Pages
-      if: always()
-      uses: actions/upload-pages-artifact@v4
+      
+    - uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
       with:
-        path: pages
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 10
 
-    # Deploy to GitHub Pages
-    - name: Deploy to GitHub Pages
-      if: always()
-      uses: actions/deploy-pages@v4
+    - name: Send Slack notification on test failure
+      if: failure()
+      uses: slackapi/slack-github-action@v2.1.1
+      with:
+        webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+        webhook-type: webhook-trigger
+        payload: |
+          {
+            "branch": "${{ github.ref_name }}",
+            "author": "${{ github.actor }}",
+            "commit": "${{ github.sha }}",
+            "report_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+
