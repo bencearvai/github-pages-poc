@@ -53,7 +53,7 @@ jobs:
           {
             "branch": "${{ github.ref_name }}",
             "author": "${{ github.actor }}",
-            "commit": "${{ github.sha }}",
-            "report_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "commit_url": "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}",
+            "job_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }
 
