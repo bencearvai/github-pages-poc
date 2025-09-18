@@ -34,7 +34,7 @@ jobs:
 
     # Run tests — continue even if tests fail
     - name: Run Playwright tests
-      run: npx playwright test --reporter=html --reporter=json --output=playwright-results.json
+      run: npx playwright test --reporter="html,json" --output=playwright-results.json
 
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
@@ -44,7 +44,7 @@ jobs:
         retention-days: 10
 
     - name: Parse Playwright results
-      if: ${{ always() }}
+      if: always()
       id: results
       run: |
         total=$(jq '[.suites[].specs[].tests[]] | length' playwright-results.json)
