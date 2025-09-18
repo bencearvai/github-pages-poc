@@ -34,14 +34,25 @@ jobs:
 
     # Run tests — continue even if tests fail
     - name: Run Playwright tests
-      run: npx playwright test --reporter=html
-      
+      run: npx playwright test --reporter=html --reporter=json --output=playwright-results.json
+
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
         name: playwright-report
         path: playwright-report/
         retention-days: 10
+
+    - name: Parse Playwright results
+      if: ${{ always() }}
+      id: results
+      run: |
+        total=$(jq '[.suites[].specs[].tests[]] | length' playwright-results.json)
+        passed=$(jq '[.suites[].specs[].tests[] | select(.status=="passed")] | length' playwright-results.json)
+        failed=$(jq '[.suites[].specs[].tests[] | select(.status=="failed")] | length' playwright-results.json)
+        echo "total=$total" >> $GITHUB_OUTPUT
+        echo "passed=$passed" >> $GITHUB_OUTPUT
+        echo "failed=$failed" >> $GITHUB_OUTPUT
 
     - name: Send Slack notification on test failure
       if: failure()
@@ -51,9 +62,10 @@ jobs:
         webhook-type: webhook-trigger
         payload: |
           {
+            "total_tests": "${{ steps.results.outputs.total }}",
+            "passed": "${{ steps.results.outputs.passed }}",
+            "failed": "${{ steps.results.outputs.failed }}",
             "branch": "${{ github.ref_name }}",
-            "author": "${{ github.actor }}",
-            "commit_url": "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}",
             "job_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts"
           }
 
