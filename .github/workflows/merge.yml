@@ -1,0 +1,15 @@
+name: main job
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-smoke:
+    if: always()
+    name: Smoke Tests
+    uses: ./.github/workflows/playwright.yml
+    secrets:
+      USER_PASS: ${{ secrets.USER_PASS }}

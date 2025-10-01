@@ -1,4 +1,7 @@
 import { test, expect } from '@playwright/test';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 test('has title', async ({ page }) => {
   await page.goto('https://playwright.dev/');
@@ -14,5 +17,15 @@ test('get started link', async ({ page }) => {
   await page.getByRole('link', { name: 'Get started' }).click();
 
   // Expects page to have a heading with the name of Installation.
-  await expect(page.getByRole('heading', { name: 'Installation wrong' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Installation' })).toBeVisible();
+});
+
+test('get started link 2', async ({ page }) => {
+  await page.goto('https://playwright.dev/');
+
+  // Click the get started link.
+  await page.getByRole('link', { name: 'Get started' }).click();
+  console.log(process.env.USER_PASS)
+  // Expects page to have a heading with the name of Installation.
+  await expect(page.getByRole('heading', { name: 'Installation' })).toBeVisible();
 });

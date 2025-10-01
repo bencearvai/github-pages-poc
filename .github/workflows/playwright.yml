@@ -1,10 +1,11 @@
 name: Playwright Tests
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  workflow_call:
+    secrets:
+      USER_PASS:
+        required: true
+        
 
 jobs:
   test:
@@ -14,6 +15,9 @@ jobs:
       pages: write
     timeout-minutes: 60
     runs-on: ubuntu-latest
+
+    env:
+      USER_PASS: ${{ secrets.USER_PASS }}
 
     steps:
     # Checkout repo
@@ -34,7 +38,7 @@ jobs:
 
     # Run tests — continue even if tests fail
     - name: Run Playwright tests
-      run: npx playwright test --reporter="html,json" --output=playwright-results.json
+      run: npx playwright test 
 
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
@@ -43,29 +47,5 @@ jobs:
         path: playwright-report/
         retention-days: 10
 
-    - name: Parse Playwright results
-      if: always()
-      id: results
-      run: |
-        total=$(jq '[.suites[].specs[].tests[]] | length' playwright-results.json)
-        passed=$(jq '[.suites[].specs[].tests[] | select(.status=="passed")] | length' playwright-results.json)
-        failed=$(jq '[.suites[].specs[].tests[] | select(.status=="failed")] | length' playwright-results.json)
-        echo "total=$total" >> $GITHUB_OUTPUT
-        echo "passed=$passed" >> $GITHUB_OUTPUT
-        echo "failed=$failed" >> $GITHUB_OUTPUT
-
-    - name: Send Slack notification on test failure
-      if: failure()
-      uses: slackapi/slack-github-action@v2.1.1
-      with:
-        webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-        webhook-type: webhook-trigger
-        payload: |
-          {
-            "total_tests": "${{ steps.results.outputs.total }}",
-            "passed": "${{ steps.results.outputs.passed }}",
-            "failed": "${{ steps.results.outputs.failed }}",
-            "branch": "${{ github.ref_name }}",
-            "job_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts"
-          }
+    
 
