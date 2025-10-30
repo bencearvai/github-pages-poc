@@ -31,6 +31,44 @@ jobs:
       with:
         node-version: lts/*
 
+    - name: List commits since last successful run
+      id: commits
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { execSync } = require('child_process');
+
+          // Get last successful run for this workflow and branch
+          const runs = await github.rest.actions.listWorkflowRuns({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: context.workflow,
+            branch: context.ref.replace('refs/heads/', ''),
+            status: 'success',
+            per_page: 1
+          });
+
+          if (runs.data.total_count === 0) {
+            core.info("No previous successful runs found.");
+            core.setOutput("count", "0");
+            core.setOutput("list", "No previous successful run");
+          } else {
+            const lastSha = runs.data.workflow_runs[0].head_sha;
+            core.info(`Last successful run SHA: ${lastSha}`);
+
+            // Get commits between last run and current
+            const logRaw = execSync(`git log --pretty=format:'%h - %an: %s' ${lastSha}..HEAD`, { encoding: 'utf-8' });
+            const logList = logRaw || "No new commits since last run";
+            const count = execSync(`git rev-list --count ${lastSha}..HEAD`, { encoding: 'utf-8' }).trim();
+
+            core.info(`Total commits since last run: ${count}`);
+            core.info(logList);
+
+            // Save to outputs for later steps
+            core.setOutput("count", count);
+            core.setOutput("list", logList);
+          }
+            
     # Install dependencies
     - name: Install dependencies
       run: npm ci
@@ -75,14 +113,15 @@ jobs:
       if: success()
       uses: slackapi/slack-github-action@v2.1.1
       with:
-        webhook: ${{ secrets.SLACK_WEBHOOK }}
+        webhook: ${{ secrets.SLACK_WEBHOOK_REGRESSION_REPORT }}
         webhook-type: webhook-trigger
         payload: |
           {
             "text": "✅ Playwright Regression Tests Passed",
-            "branch": ${{ github.ref_name }},
+            "branch": "${{ github.ref_name }}",
             "job_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "download_artifact": ${{ steps.get_artifact.outputs.url }}
+            "download_artifact": "${{ steps.get_artifact.outputs.url }}",
+            "commits_since_last_run": "*${{ steps.commits.outputs.count }} commit(s)*\n${{ steps.commits.outputs.list }}"
           }
 
     # ❌ FAILURE
