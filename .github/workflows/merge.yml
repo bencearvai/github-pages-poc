@@ -13,3 +13,4 @@ jobs:
     uses: ./.github/workflows/playwright.yml
     secrets:
       USER_PASS: ${{ secrets.USER_PASS }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
